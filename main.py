@@ -4,6 +4,7 @@ import re
 import random
 import time
 import json
+import urllib.parse
 
 env = {}
 
@@ -18,6 +19,14 @@ def init_env():
             val = " ".join(line.split(" ")[1:]).strip()
             env[key] = val
     assert "cookie" in env and "cookie must be in the env"
+
+def nested_get(d, keys, default=None):
+    for key in keys:
+        if isinstance(d, dict):
+            d = d.get(key, default)
+        else:
+            return default
+    return d
 
 init_env()
 
@@ -82,7 +91,7 @@ def upload_media(files):
     if len(upload_id) > 1:
         gen_entity = lambda id:   { "category": "IMAGE", "mediaUrn": id, "tapTargets": [], "altText": ""} 
         payload = {
-            "authorUrn": env["authorUrn"],
+            "authorUrn": "urn:li:fsd_profile:" + env["authorUrn"],
             "entities": [
                 gen_entity(id) for id in upload_ids
             ]
@@ -232,8 +241,6 @@ def follow_member(id):
     response = requests.post(url, headers=HEADERS, json=payload)
     assert response.status_code == 200 and f"Failed to follow a member {id}"
 
-
-
 def get_popular_members():
     url = 'https://www.linkedin.com/flagship-web/rsc-action/actions/pagination?sduiid=com.linkedin.sdui.pagers.mynetwork.adda-cohorts-components'
     payload = {
@@ -280,7 +287,6 @@ def get_popular_members():
     member_ids = re.findall(r'"value":"urn:li:fsd_followingState:urn:li:member:(\d+)', response.text)
 
     return member_ids
-
 
 def get_connections(count=12):
     # return value
@@ -380,7 +386,6 @@ def get_connections(count=12):
 
 
     return members
-
 
 def send_connection_request(id,member):
     url = "https://www.linkedin.com/flagship-web/rsc-action/actions/server-request?sduiid=com.linkedin.sdui.requests.mynetwork.addaAddConnection"
@@ -597,12 +602,92 @@ def send_connection_request(id,member):
     assert response.status_code == 200 and f"Failed to send a connection request to {id} account is {member['url']}" 
     print(response.text)
 
-
-
 def send_bulk_connections(amount=12):
     members = get_connections(amount) 
     for id in members.keys():
         send_connection_request(id,members[id])
         # print('send request to',members[id]["first_name"],members[id]["last_name"],members[id]["url"])
 
+def get_my_posts(offset=0,count=20):
+    # smth about params is not working
+    # maybe related to the encoding of ":"
+    # any change in the url format will cause failure
+    # todo: you can extract more info, imgs and more 
+    url = f"""\
+        https://www.linkedin.com/voyager/api/graphql?includeWebMetadata=true&\
+        variables=(count:{count},start:{offset},profileUrn:urn%3Ali%3Afsd_profile%3A{env["authorUrn"]})&\
+        queryId=voyagerFeedDashProfileUpdates.89d660b86d2c3091afff9dd268c4c484\
+        """.replace("        ","")
+    response = requests.get(url, headers=HEADERS)
+    data = response.json()
 
+
+    # if response.status_code != 200:
+        # print(response.text)
+    assert response.status_code == 200 and "Failed to get posts"
+
+    posts = data["data"]["data"]["feedDashProfileUpdatesByMemberShareFeed"]["*elements"]
+    for i in range(len(posts)):
+        posts[i] = posts[i].split("activity:")[1].split(",")[0]
+
+
+    return posts
+
+def delete_post(id):
+    url = "https://www.linkedin.com/voyager/api/graphql?action=execute&queryId=voyagerContentcreationDashShares.c459f081c61de601a90d103fbea46496"
+    payload = {
+        "variables": {
+            "updateUrn": f"urn:li:fsd_update:(urn:li:activity:{id},MEMBER_SHARES,EMPTY,DEFAULT,false)"
+        },
+        "queryId": "voyagerContentcreationDashShares.c459f081c61de601a90d103fbea46496"
+    }
+    response = requests.post(url, json=payload, headers=HEADERS)
+    assert response.status_code == 200 and f"Failed to delete post id='{id}'"
+
+def delete_bulk(ids):
+    for id in ids:
+        delete_post(id)
+        print("deleted",id)
+
+
+def get_feed_posts(offset=0,count=12):
+    # Returns a list of dictionaries, each containing metadata about a matched LinkedIn post,
+    # including its URN, link, author's profile link, username, and post text.
+
+    pagination_token = "1556267518-1752613822911-63567cd0f8a5dac945186dbfd093e122"
+    url = f"""https://www.linkedin.com/voyager/api/graphql?\
+        variables=(start:{offset},count:{count},paginationToken:{pagination_token},sortOrder:RELEVANCE)&\
+        queryId=voyagerFeedDashMainFeed.7a50ef8ba5a7865c23ad5df46f735709\
+        """.replace("        ","")
+    response = requests.get(url,headers=HEADERS)
+
+    assert response.status_code == 200 and "Failed to get_feed_posts"
+    data = response.json()
+
+    posts_urnss = data["data"]["data"]["feedDashMainFeedByMainFeed"]["*elements"]
+    infos = data["included"]
+
+
+    posts = []
+
+    for info in infos:
+        if info["entityUrn"] in posts_urnss:
+            post_link = nested_get(info,["socialContent","shareUrl"],"not found")
+            profile_link = nested_get(info,["actor","navigationContext","actionTarget"],"not found")
+            user_name = nested_get(info,["actor","name","text"],"not found")
+            text = nested_get(info,["commentary","text","text"],"not found")
+            print("=" * 100)
+            print("post_link",post_link)
+            print("profile_link",profile_link)
+            print("user_name",user_name)
+            print("text",text)
+            print()
+
+            posts.append({
+                "urn": info["entityUrn"],
+                "post_link": post_link,
+                "profile_link": profile_link,
+                "user_name": user_name,
+                "text": text
+            })
+    return posts
