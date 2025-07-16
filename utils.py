@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import re
 
 env = {}
 HEADERS = {}
@@ -20,21 +21,23 @@ def init():
             env[key] = val
     assert "cookie" in env and "cookie must be in the env"
 
+
+
+    csrf_token = re.search(r"ajax:\d+",env["cookie"]).group()
     HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0',
-        'Accept': 'application/vnd.linkedin.normalized+json+2.1',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'x-li-lang': 'en_US',
-        'x-li-track': '{"clientVersion":"1.13.37080","mpVersion":"1.13.37080","osName":"web","timezoneOffset":1,"timezone":"Africa/Algiers","deviceFormFactor":"DESKTOP","mpName":"voyager-web","displayDensity":1.0909090909090908,"displayWidth":1919.9999999999998,"displayHeight":1080}',
-        'x-li-page-instance': 'urn:li:page:d_flagship3_profile_view_create_post;xRLRrkjVTSq8FZtUjRBGfQ==',
-        'csrf-token': 'ajax:6740192219103647140',
-        'x-restli-protocol-version': '2.0.0',
-        'x-li-pem-metadata': 'Voyager - Sharing - CreateShare=sharing-create-content',
-        'content-type': 'application/json; charset=utf-8',
-        'Origin': 'https://www.linkedin.com',
-        'Referer': 'https://www.linkedin.com/in/mahdi-benhom-93a235375/overlay/create-post/',
-        'Cookie': env["cookie"], 
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0',
+    'Accept': 'application/vnd.linkedin.normalized+json+2.1',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br, zstd',
+    'csrf-token': csrf_token,
+    'Alt-Used': 'www.linkedin.com',
+    'Connection': 'keep-alive',
+    'Referer': 'https://www.linkedin.com/feed/',
+    'Cookie':  env["cookie"],
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'TE': 'trailers',
     }
 
 

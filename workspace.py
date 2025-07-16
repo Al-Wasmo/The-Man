@@ -2,8 +2,18 @@
 
 import requests
 import re
-from utils import env , HEADERS
 import utils
+import enum
+
+
+class ReactionType(str, enum.Enum):
+    PRAISE = "PRAISE"
+    APPRECIATION = "APPRECIATION"
+    EMPATHY = "EMPATHY"
+    INTEREST = "INTEREST"
+    LIKE = "LIKE"
+    ENTERTAINMENT = "ENTERTAINMENT"
+
 
 
 # core of the linkedin bot 
@@ -36,7 +46,7 @@ class WorkSpace:
                 "filename": file,
             }
             url =  "https://www.linkedin.com/voyager/api/voyagerVideoDashMediaUploadMetadata?action=upload"
-            response = requests.post(url, headers=HEADERS, json=payload)
+            response = requests.post(url, headers=utils.HEADERS, json=payload)
 
             assert response.status_code == 200 and "Failed to pre-upload file"
 
@@ -48,7 +58,7 @@ class WorkSpace:
             # print("uploading to",upload_url)
             # print("uploading to",upload_id)
 
-            response = requests.put(upload_url,headers=HEADERS | {"Content-Type": "application/png"},data=file_data)
+            response = requests.put(upload_url,headers=utils.HEADERS | {"Content-Type": "application/png"},data=file_data)
 
             assert response.status_code == 201 and "Failed to upload file"
 
@@ -58,13 +68,13 @@ class WorkSpace:
         if len(upload_id) > 1:
             gen_entity = lambda id:   { "category": "IMAGE", "mediaUrn": id, "tapTargets": [], "altText": ""} 
             payload = {
-                "authorUrn": "urn:li:fsd_profile:" + env["authorUrn"],
+                "authorUrn": "urn:li:fsd_profile:" + utils.env["authorUrn"],
                 "entities": [
                     gen_entity(id) for id in upload_ids
                 ]
             }
             url = "https://www.linkedin.com/voyager/api/voyagerVideoDashMultiPhotos"
-            response = requests.post(url,headers=HEADERS, json=payload)
+            response = requests.post(url,headers=utils.HEADERS, json=payload)
             assert response.status_code == 201 and "Failed to upload multi files (in collection)"
             
 
@@ -118,7 +128,7 @@ class WorkSpace:
                     "mediaUrn":upload_id,
                     "tapTargets": []
                 }
-        response = requests.post(url, headers=HEADERS, json=payload)
+        response = requests.post(url, headers=utils.HEADERS, json=payload)
         print("[upload post]",response.status_code)
 
     def follow_member(self,id):
@@ -195,7 +205,7 @@ class WorkSpace:
             }
         }
         url = "https://www.linkedin.com/flagship-web/rsc-action/actions/server-request?sduiid=com.linkedin.sdui.requests.mynetwork.addaUpdateFollowState"
-        response = requests.post(url, headers=HEADERS, json=payload)
+        response = requests.post(url, headers=utils.HEADERS, json=payload)
         assert response.status_code == 200 and f"Failed to follow a member {id}"
 
     def get_popular_members(self):
@@ -242,7 +252,7 @@ class WorkSpace:
                 "retryCount": 2
             }
         }
-        response = requests.post(url,headers=HEADERS, json=payload)
+        response = requests.post(url,headers=utils.HEADERS, json=payload)
         assert response.status_code == 200 and "Failed to get popularmembers"
         member_ids = re.findall(r'"value":"urn:li:fsd_followingState:urn:li:member:(\d+)', response.text)
 
@@ -318,7 +328,7 @@ class WorkSpace:
         }
 
 
-        response = requests.post(url,headers=HEADERS, json=payload)
+        response = requests.post(url,headers=utils.HEADERS, json=payload)
         assert response.status_code == 200 and "Failed to fetch connections"
 
         members = {}
@@ -553,7 +563,7 @@ class WorkSpace:
                 ]
             }
         }
-        response = requests.post(url, headers=HEADERS | {"Content-Type": "application/json"}, json=payload)
+        response = requests.post(url, headers=utils.HEADERS | {"Content-Type": "application/json"}, json=payload)
         assert response.status_code == 200 and f"Failed to send a connection request to {id} account is {member['url']}" 
 
     def send_bulk_connections(self,amount=12):
@@ -574,10 +584,10 @@ class WorkSpace:
         # todo: you can extract more info, imgs and more 
         url = f"""\
             https://www.linkedin.com/voyager/api/graphql?includeWebMetadata=true&\
-            variables=(count:{count},start:{offset},profileUrn:urn%3Ali%3Afsd_profile%3A{env["authorUrn"]})&\
+            variables=(count:{count},start:{offset},profileUrn:urn%3Ali%3Afsd_profile%3A{utils.env["authorUrn"]})&\
             queryId=voyagerFeedDashProfileUpdates.89d660b86d2c3091afff9dd268c4c484\
-            """.replace("        ","")
-        response = requests.get(url, headers=HEADERS)
+            """.replace("            ","")
+        response = requests.get(url, headers=utils.HEADERS)
         data = response.json()
 
 
@@ -602,7 +612,7 @@ class WorkSpace:
             },
             "queryId": "voyagerContentcreationDashShares.c459f081c61de601a90d103fbea46496"
         }
-        response = requests.post(url, json=payload, headers=HEADERS)
+        response = requests.post(url, json=payload, headers=utils.HEADERS)
         assert response.status_code == 200 and f"Failed to delete post id='{id}'"
 
     def delete_posts_bulk(self,ids):
@@ -610,20 +620,21 @@ class WorkSpace:
         for id in ids:
             self.delete_post(id)
 
-    def get_feed_posts(self,offset=0,count=12):
+    def get_feed_posts(self,offset=0,count=10):
         # Returns a list of dictionaries, each containing metadata about a matched LinkedIn post,
         # including its URN, link, author's profile link, username, and post text.
 
-        pagination_token = "1556267518-1752613822911-63567cd0f8a5dac945186dbfd093e122"
+    
+        pagination_token = "1556267518-1752676299234-a2ec834cc58096e0990c220844b289f9"
         url = f"""https://www.linkedin.com/voyager/api/graphql?\
             variables=(start:{offset},count:{count},paginationToken:{pagination_token},sortOrder:RELEVANCE)&\
             queryId=voyagerFeedDashMainFeed.7a50ef8ba5a7865c23ad5df46f735709\
-            """.replace("        ","")
-        response = requests.get(url,headers=HEADERS)
+            """.replace("            ","")
+        response = requests.get(url,headers=utils.HEADERS)
 
         assert response.status_code == 200 and "Failed to get_feed_posts"
-        data = response.json()
 
+        data = response.json()
         posts_urnss = data["data"]["data"]["feedDashMainFeedByMainFeed"]["*elements"]
         infos = data["included"]
 
@@ -636,12 +647,12 @@ class WorkSpace:
                 profile_link = utils.nested_get(info,["actor","navigationContext","actionTarget"],"not found")
                 user_name = utils.nested_get(info,["actor","name","text"],"not found")
                 text = utils.nested_get(info,["commentary","text","text"],"not found")
-                print("=" * 100)
-                print("post_link",post_link)
-                print("profile_link",profile_link)
-                print("user_name",user_name)
-                print("text",text)
-                print()
+                # print("=" * 100)
+                # print("post_link",post_link)
+                # print("profile_link",profile_link)
+                # print("user_name",user_name)
+                # print("text",text)
+                # print()
 
                 posts.append({
                     "urn": info["entityUrn"],
@@ -651,3 +662,22 @@ class WorkSpace:
                     "text": text
                 })
         return posts
+
+
+    def react_to_post(urn,type : ReactionType = ReactionType.LIKE):
+        payload = {
+            "variables": {
+                "entity": {
+                    "reactionType": type
+                },
+                "threadUrn": f"urn:li:activity:{urn}"
+            },
+            "queryId": "voyagerSocialDashReactions.b731222600772fd42464c0fe19bd722b",
+            "includeWebMetadata": True
+        }
+        url = "https://www.linkedin.com/voyager/api/graphql?action=execute&queryId=voyagerSocialDashReactions.b731222600772fd42464c0fe19bd722b"
+        response = requests.post(url, headers=utils.HEADERS, json=payload)
+        assert response.status_code == 200 and "Failed to react to post"
+        print(response.text)
+
+    
