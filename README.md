@@ -10,9 +10,10 @@ linkedin bot
 
 
 ## Welp
-- welp i got detected, i dont know how long the block will take if it stays like this i will just make the repo public and move on, else i will continue
+- welp i got detected, and they want some id bs, its to be expected tbh so moving on
 
 
-- **2025-05-16**: was implementing reacting      
-<img src="restriced/restriced.png" alt="restriced" width=400/>
+## Overall
+it was not hard to automate some linkden actions, with more careful testing and dedication i think its more than possible to automate it 100% and create a normal linkden user aka a bot (jk)
+
 
